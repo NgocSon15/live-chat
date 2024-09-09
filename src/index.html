@@ -1,0 +1,108 @@
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Chatbox</title>
+        <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+        <style>
+            .chatbox {
+                border: 1px solid #000;
+                padding: 15px;
+                width: 400px;
+                margin: 0 auto;
+            }
+            .message-container {
+                border: 1px solid #000;
+                height: 300px;
+                overflow-y: auto;
+                padding: 10px;
+                margin-top: 10px;
+            }
+            .message {
+                margin-bottom: 10px;
+            }
+            .input-container {
+                margin-top: 10px;
+            }
+        </style>
+    </head>
+    <body ng-app="liveChat" ng-controller="ChatController">
+        <div class="chatbox">
+            <div>Your ID: {{ userId }}</div>
+            <div class="form-group">
+                <label for="myId">My ID</label>
+                <input type="text" id="myId" ng-model="myId" class="form-control" placeholder="Enter your Client ID">
+            </div>
+            <div class="form-group">
+                <label for="friendId">Friend ID</label>
+                <input type="text" id="friendId" ng-model="friendId" class="form-control" placeholder="Enter client ID to start the chat">
+            </div>
+            <button class="btn btn-secondary" ng-click="connect()">Connect</button>
+            <div class="message-container" ng-show="connected">
+                <div class="message" ng-repeat="message in messages">
+                    <strong>{{message.from}}:</strong> {{message.message}}
+                </div>
+            </div>
+            <div class="input-container" ng-show="connected">
+                <input type="text" id="newMessage" ng-model="newMessage" class="form-control" placeholder="Enter message to send">
+                <button class="btn btn-secondary mt-2" ng-click="sendMessage()">Send</button>
+            </div>
+        </div>
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+        <script>
+            var userID = Math.floor(Math.random() * 1000);
+            const socketClient = io("ws://127.0.0.1:3000",{
+                transports: ['websocket'],
+                query: "user_id=" + userID
+            });
+
+            socketClient.on('connect_error', function(error) {
+                // socketClient.emit('register', $scope.myId);
+                console.log('Connection error:', error);
+            });
+
+            var app = angular.module('liveChat', []);
+
+            app.controller('ChatController', function($scope) {
+                $scope.messages = [];
+                $scope.connected = false;
+                $scope.userId = userID;
+
+                $scope.connect = function() {
+                    if ($scope.myId && $scope.friendId) {
+                        console.log('Connected with friendId:', $scope.friendId);
+                    }
+                    $scope.messages = [];
+                    $scope.connected = true;
+                };
+
+                socketClient.on('message', function(data) {
+                    if (data.from == $scope.friendId) {
+                        $scope.messages.push(data);
+                        $scope.$apply();
+                    }
+                });
+
+                $scope.sendMessage = function() {
+                    console.log($scope.newMessage);
+                    
+                    if ($scope.newMessage != '') {
+                        socketClient.emit('message', {
+                            from: $scope.myId,
+                            to: $scope.friendId,
+                            message: $scope.newMessage
+                        });
+                        $scope.messages.push({
+                            from: 'me',
+                            message: $scope.newMessage
+                        });
+                        $scope.newMessage = '';
+                        $scope.$apply();
+                    }
+                };
+            });
+        </script>
+    </body>
+</html>
